@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     printf("Test server is started\n");
     if (tcp_passive_open(&server, PORT) != TCP_NO_ERROR) exit(EXIT_FAILURE);
 
-    pthread_t tid; // Thread ID placeholder
+    pthread_t tid[MAX_CONN]; // Thread ID placeholder
 
     do {
         if (tcp_wait_for_connection(server, &client) != TCP_NO_ERROR) exit(EXIT_FAILURE);
@@ -64,9 +64,9 @@ int main(int argc, char *argv[]) {
 
         pthread_mutex_lock(&counter_mutex);
         if (conn_counter <MAX_CONN){
-            conn_counter++;
-            pthread_create(&tid, NULL, handle_client, (void *)client); // Create a thread to handle client
 
+            pthread_create(&tid[conn_counter], NULL, handle_client, (void *)client); // Create a thread to handle client
+            conn_counter++;
             //HANDLE CLIENT
             do {
                 // read sensor ID
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
             tcp_close(&client);
 
 
-            pthread_detach(tid); // Detach thread to avoid memory leaks
+             // Detach thread to avoid memory leaks
         } else {
             printf("Server at maximum capacity. Rejecting new connection.\n");
             tcp_close(&client); // Close the connection if maximum capacity reached
@@ -99,6 +99,12 @@ int main(int argc, char *argv[]) {
         pthread_mutex_unlock(&counter_mutex);
 
     } while (conn_counter < MAX_CONN);
+
+    // detaching threads to prevent memory leaks
+    for (int i = 0; i < MAX_CONN; ++i) {
+        pthread_detach(tid[i]);
+    }
+
     if (tcp_close(&server) != TCP_NO_ERROR) exit(EXIT_FAILURE);
     printf("Test server is shutting down\n");
     return 0;
